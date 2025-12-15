@@ -11,7 +11,6 @@ from src.search import (
     fetch_all_posts,
     get_authenticated_client,
     get_since_timestamp,
-    parse_keywords,
     search_posts_paginated,
 )
 
@@ -65,56 +64,6 @@ class TestGetSinceTimestamp:
         dt = dt.replace(tzinfo=UTC)
         now = datetime.now(UTC)
         assert dt < now
-
-
-class TestParseKeywords:
-    """Tests for parse_keywords function."""
-
-    def test_separates_hashtags_and_phrases(self):
-        """Test that hashtags and phrases are separated correctly."""
-        keywords = ["#smarthome", "#homeassistant", "smart home", "home automation"]
-        tags, phrases = parse_keywords(keywords)
-
-        assert tags == ["smarthome", "homeassistant"]
-        assert phrases == ["smart home", "home automation"]
-
-    def test_single_word_phrases(self):
-        """Test that single-word phrases are preserved."""
-        keywords = ["zigbee", "matter"]
-        tags, phrases = parse_keywords(keywords)
-
-        assert tags == []
-        assert phrases == ["zigbee", "matter"]
-
-    def test_removes_hash_prefix(self):
-        """Test that # prefix is removed from hashtags."""
-        keywords = ["#test", "#another"]
-        tags, phrases = parse_keywords(keywords)
-
-        assert tags == ["test", "another"]
-        assert phrases == []
-
-    def test_empty_list(self):
-        """Test with empty keyword list."""
-        tags, phrases = parse_keywords([])
-        assert tags == []
-        assert phrases == []
-
-    def test_only_hashtags(self):
-        """Test with only hashtags."""
-        keywords = ["#one", "#two", "#three"]
-        tags, phrases = parse_keywords(keywords)
-
-        assert tags == ["one", "two", "three"]
-        assert phrases == []
-
-    def test_only_phrases(self):
-        """Test with only phrases."""
-        keywords = ["smart home", "home automation"]
-        tags, phrases = parse_keywords(keywords)
-
-        assert tags == []
-        assert phrases == ["smart home", "home automation"]
 
 
 @pytest.mark.asyncio
@@ -196,17 +145,18 @@ class TestSearchPostsPaginated:
         # Should stop at 2 pages even though more are available
         assert mock_client.app.bsky.feed.search_posts.call_count == 2
 
-    async def test_search_posts_includes_since(self):
-        """Test that 'since' parameter is included."""
+    async def test_search_posts_includes_query_and_since(self):
+        """Test that 'q' and 'since' parameters are included."""
         mock_client = AsyncMock()
         mock_response = MagicMock()
         mock_response.posts = []
         mock_response.cursor = None
         mock_client.app.bsky.feed.search_posts = AsyncMock(return_value=mock_response)
 
-        await search_posts_paginated(mock_client, "test")
+        await search_posts_paginated(mock_client, "test query")
 
         call_args = mock_client.app.bsky.feed.search_posts.call_args
+        assert call_args.kwargs["params"]["q"] == "test query"
         assert "since" in call_args.kwargs["params"]
 
 
@@ -235,10 +185,10 @@ class TestFetchAllPosts:
             {"uri": "at://did:plc:test/post/3", "text": "Post 3"},
         ]
 
-        async def search_side_effect(client, query=None, tag=None, **kwargs):
-            if tag == "smarthome":
+        async def search_side_effect(client, query, **kwargs):
+            if query == "#smarthome":
                 return posts_1
-            elif tag == "homeassistant":
+            elif query == "#homeassistant":
                 return posts_2
             return []
 
@@ -342,7 +292,7 @@ class TestFetchAllPosts:
 
         # Check that search was called with quoted multi-word phrases
         calls = mock_search.call_args_list
-        queries = [call.kwargs.get("query") for call in calls if call.kwargs.get("query")]
+        queries = [call.kwargs.get("query") for call in calls]
 
         assert '"smart home"' in queries
         assert '"google home"' in queries
@@ -352,11 +302,11 @@ class TestFetchAllPosts:
     @patch("src.search.search_posts_paginated")
     @patch("src.search.get_authenticated_client")
     @patch("src.search.load_keywords")
-    async def test_fetch_all_posts_does_not_quote_single_words(
+    async def test_fetch_all_posts_preserves_hashtags(
         self, mock_load_keywords, mock_get_client, mock_search
     ):
-        """Test that single-word phrases are not wrapped in quotes."""
-        mock_load_keywords.return_value = ["matter", "thread"]
+        """Test that hashtags are passed through as-is."""
+        mock_load_keywords.return_value = ["#smarthome", "#homeassistant"]
         mock_client = AsyncMock()
         mock_get_client.return_value = mock_client
         mock_search.return_value = []
@@ -364,10 +314,8 @@ class TestFetchAllPosts:
         await fetch_all_posts()
 
         calls = mock_search.call_args_list
-        queries = [call.kwargs.get("query") for call in calls if call.kwargs.get("query")]
+        queries = [call.kwargs.get("query") for call in calls]
 
-        # Single words should not have quotes
-        assert "matter" in queries
-        assert "thread" in queries
-        assert '"matter"' not in queries
-        assert '"thread"' not in queries
+        # Hashtags should be passed as-is (not quoted, not stripped)
+        assert "#smarthome" in queries
+        assert "#homeassistant" in queries

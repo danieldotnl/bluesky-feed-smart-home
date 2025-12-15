@@ -12,25 +12,6 @@ from src.config import LANGUAGE, SEARCH_TIME_WINDOW_DAYS, load_keywords
 MAX_PAGES_PER_KEYWORD = 3
 
 
-def parse_keywords(keywords: list[str]) -> tuple[list[str], list[str]]:
-    """Separate keywords into hashtags and phrases.
-
-    Args:
-        keywords: List of search terms
-
-    Returns:
-        Tuple of (hashtags without #, phrases)
-    """
-    tags = []
-    phrases = []
-    for keyword in keywords:
-        if keyword.startswith("#"):
-            tags.append(keyword[1:])  # Remove # prefix
-        else:
-            phrases.append(keyword)
-    return tags, phrases
-
-
 async def get_authenticated_client() -> AsyncClient:
     """Create and authenticate an AsyncClient for API access."""
     client = AsyncClient()
@@ -56,8 +37,7 @@ def get_since_timestamp() -> str:
 
 async def search_posts_paginated(
     client: AsyncClient,
-    query: str | None = None,
-    tag: str | None = None,
+    query: str,
     limit_per_page: int = 100,
     max_pages: int = MAX_PAGES_PER_KEYWORD,
 ) -> list[dict]:
@@ -65,8 +45,7 @@ async def search_posts_paginated(
 
     Args:
         client: Authenticated AsyncClient
-        query: Search query string (for phrases)
-        tag: Hashtag to filter by (without # prefix)
+        query: Search query string (e.g., "#smarthome" or '"smart home"')
         limit_per_page: Results per page (max 100)
         max_pages: Maximum pages to fetch
 
@@ -79,19 +58,12 @@ async def search_posts_paginated(
 
     for page in range(max_pages):
         params = {
+            "q": query,
             "lang": LANGUAGE,
             "limit": limit_per_page,
             "sort": "latest",
             "since": since,
         }
-
-        if query:
-            params["q"] = query
-        if tag:
-            params["tag"] = [tag]
-            # API requires q parameter even when filtering by tag
-            if not query:
-                params["q"] = "*"
 
         if cursor:
             params["cursor"] = cursor
@@ -116,8 +88,8 @@ async def search_posts_paginated(
 async def fetch_all_posts() -> list[dict]:
     """Fetch posts for all configured keywords and deduplicate.
 
-    Uses the tag parameter for hashtag searches (more precise facet matching)
-    and the q parameter for phrase searches.
+    Keywords starting with # are searched as hashtags.
+    Multi-word phrases are wrapped in quotes for exact matching.
     """
     all_posts: dict[str, dict] = {}
     keywords = load_keywords()
@@ -126,30 +98,19 @@ async def fetch_all_posts() -> list[dict]:
         print("Warning: No keywords found in data/keywords.txt")
         return []
 
-    tags, phrases = parse_keywords(keywords)
-
     # Create a single authenticated client for all searches
     client = await get_authenticated_client()
 
-    # Search by hashtags using tag parameter (precise facet matching)
-    for tag in tags:
+    for keyword in keywords:
         try:
-            posts = await search_posts_paginated(client, tag=tag)
-            new_count = 0
-            for post in posts:
-                uri = post.get("uri")
-                if uri and uri not in all_posts:
-                    all_posts[uri] = post
-                    new_count += 1
-            print(f"  #{tag}: {len(posts)} posts ({new_count} new)")
-        except AtProtocolError as e:
-            print(f"Error searching for #{tag}: {e}")
+            # Build query: hashtags stay as-is, multi-word phrases get quoted
+            if keyword.startswith("#"):
+                query = keyword
+            elif " " in keyword:
+                query = f'"{keyword}"'
+            else:
+                query = keyword
 
-    # Search by phrases using q parameter
-    # Wrap multi-word phrases in quotes for exact phrase matching
-    for phrase in phrases:
-        try:
-            query = f'"{phrase}"' if " " in phrase else phrase
             posts = await search_posts_paginated(client, query=query)
             new_count = 0
             for post in posts:
@@ -157,8 +118,8 @@ async def fetch_all_posts() -> list[dict]:
                 if uri and uri not in all_posts:
                     all_posts[uri] = post
                     new_count += 1
-            print(f"  '{phrase}': {len(posts)} posts ({new_count} new)")
+            print(f"  '{keyword}': {len(posts)} posts ({new_count} new)")
         except AtProtocolError as e:
-            print(f"Error searching for '{phrase}': {e}")
+            print(f"Error searching for '{keyword}': {e}")
 
     return list(all_posts.values())
