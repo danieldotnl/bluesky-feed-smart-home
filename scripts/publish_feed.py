@@ -4,8 +4,12 @@
 import os
 
 from atproto import Client
+from dotenv import load_dotenv
 
-from src.config import FEED_DID, FEED_HOSTNAME
+from src.config import FEED_DID
+
+# Load .env file if it exists (for local development)
+load_dotenv()
 
 # Feed metadata
 FEED_RECORD_NAME = "smart-home"
@@ -37,7 +41,7 @@ def main() -> None:
         "createdAt": client.get_current_time_iso(),
     }
 
-    response = client.com.atproto.repo.put_record(
+    client.com.atproto.repo.put_record(
         {
             "repo": client.me.did,
             "collection": "app.bsky.feed.generator",
@@ -46,7 +50,7 @@ def main() -> None:
         }
     )
 
-    print(f"Feed published successfully!")
+    print("Feed published successfully!")
     print(f"Feed URI: at://{client.me.did}/app.bsky.feed.generator/{FEED_RECORD_NAME}")
     print(f"View at: https://bsky.app/profile/{handle}/feed/{FEED_RECORD_NAME}")
 

@@ -35,7 +35,7 @@ uv run ruff format .
 
 ### Static Feed Generation Flow
 
-1. **Search** ([src/search.py](src/search.py)) - Searches Bluesky's public API for posts matching keywords from `SEARCH_KEYWORDS` in [src/config.py](src/config.py)
+1. **Search** ([src/search.py](src/search.py)) - Uses the `atproto` library to search Bluesky for posts matching keywords from `SEARCH_KEYWORDS` in [src/config.py](src/config.py)
 2. **Algorithm** ([src/algorithm.py](src/algorithm.py)) - Filters and ranks posts by date (newest first)
 3. **Generator** ([src/generator.py](src/generator.py)) - Writes static JSON files to `output/` directory:
    - `output/.well-known/did.json` - DID document identifying the feed generator
@@ -46,9 +46,13 @@ uv run ruff format .
 
 **No Backend Server:** This is not a traditional feed generator with a web server. It pre-generates static JSON files that Cloudflare Pages serves directly. Bluesky clients fetch these static files.
 
-**Authentication:** The feed itself is unauthenticated and uses Bluesky's public API. Authentication is only needed for `publish_feed.py` (one-time feed registration) via `BSKY_HANDLE` and `BSKY_PASSWORD` environment variables.
+**Authentication:** Both scripts require Bluesky authentication via `BSKY_HANDLE` and `BSKY_PASSWORD` environment variables:
+- `update_feed.py` - Authenticates to search for posts (required as of 2025)
+- `publish_feed.py` - Authenticates to register/update the feed generator
 
-**Deployment:** GitHub Actions runs `update_feed.py` every 30 minutes, then deploys the `output/` directory to Cloudflare Pages using the Wrangler action.
+**API Library:** Uses the official `atproto` Python library for all Bluesky API interactions, providing type safety and proper AT Protocol support.
+
+**Deployment:** GitHub Actions runs `update_feed.py` every 30 minutes with credentials from GitHub Secrets, then deploys the `output/` directory to Cloudflare Pages using the Wrangler action.
 
 ## Configuration
 

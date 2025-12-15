@@ -4,10 +4,15 @@
 import asyncio
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 from src.algorithm import filter_and_rank
 from src.config import FEED_SIZE
 from src.generator import write_output_files
 from src.search import fetch_all_posts
+
+# Load .env file if it exists (for local development)
+load_dotenv()
 
 
 async def main() -> None:
