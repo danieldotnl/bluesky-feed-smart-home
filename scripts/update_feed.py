@@ -25,7 +25,7 @@ async def main() -> None:
     print(f"Selected top {len(ranked_posts)} posts")
 
     output_dir = Path(__file__).parent.parent / "output"
-    write_output_files(ranked_posts, output_dir)
+    await write_output_files(ranked_posts, output_dir)
 
     print("Feed update complete!")
 

@@ -10,11 +10,15 @@ requires-python = ">=3.14"
 dependencies = [
     "atproto>=0.0.55",
     "python-dotenv>=1.0.0",
+    "aiofiles>=24.1.0",
 ]
 
 [project.optional-dependencies]
 dev = [
     "ruff>=0.8",
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.24.0",
+    "pytest-mock>=3.14.0",
 ]
 
 [tool.hatch.build.targets.wheel]

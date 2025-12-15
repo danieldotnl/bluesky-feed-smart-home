@@ -1,6 +1,8 @@
 import json
 from pathlib import Path
 
+import aiofiles
+
 from src.config import FEED_DID, FEED_HOSTNAME
 
 
@@ -36,7 +38,7 @@ def generate_feed_skeleton(posts: list[dict]) -> dict:
     return result
 
 
-def write_output_files(posts: list[dict], output_dir: Path) -> None:
+async def write_output_files(posts: list[dict], output_dir: Path) -> None:
     """Write the static JSON files for Cloudflare Pages."""
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -44,13 +46,17 @@ def write_output_files(posts: list[dict], output_dir: Path) -> None:
     well_known_dir = output_dir / ".well-known"
     well_known_dir.mkdir(exist_ok=True)
     did_path = well_known_dir / "did.json"
-    did_path.write_text(json.dumps(generate_did_document(), indent=2))
+    did_doc = generate_did_document()
+    async with aiofiles.open(did_path, "w") as f:
+        await f.write(json.dumps(did_doc, indent=2))
 
     # Write feed skeleton
     xrpc_dir = output_dir / "xrpc"
     xrpc_dir.mkdir(exist_ok=True)
     feed_path = xrpc_dir / "app.bsky.feed.getFeedSkeleton"
-    feed_path.write_text(json.dumps(generate_feed_skeleton(posts), indent=2))
+    feed_skeleton = generate_feed_skeleton(posts)
+    async with aiofiles.open(feed_path, "w") as f:
+        await f.write(json.dumps(feed_skeleton, indent=2))
 
     print(f"Written {len(posts)} posts to feed skeleton")
     print(f"Output files written to {output_dir}")

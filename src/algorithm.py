@@ -7,7 +7,9 @@ def sort_by_date(posts: list[dict]) -> list[dict]:
     def get_timestamp(post: dict) -> datetime:
         indexed_at = post.get("indexedAt", "")
         try:
-            return datetime.fromisoformat(indexed_at.replace("Z", "+00:00"))
+            dt = datetime.fromisoformat(indexed_at.replace("Z", "+00:00"))
+            # Return timezone-aware datetime with UTC
+            return dt.replace(tzinfo=None) if dt.tzinfo else dt
         except (ValueError, AttributeError):
             return datetime.min
 
