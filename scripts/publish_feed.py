@@ -7,15 +7,15 @@ import os
 from atproto import AsyncClient
 from dotenv import load_dotenv
 
-from src.config import FEED_DID
+from src.config import (
+    FEED_DESCRIPTION,
+    FEED_DID,
+    FEED_DISPLAY_NAME,
+    FEED_RECORD_NAME,
+)
 
 # Load .env file if it exists (for local development)
 load_dotenv()
-
-# Feed metadata
-FEED_RECORD_NAME = "smart-home"
-FEED_DISPLAY_NAME = "Smart Home"
-FEED_DESCRIPTION = "Posts about smart home, home automation, Home Assistant, and IoT"
 
 
 async def main() -> None:

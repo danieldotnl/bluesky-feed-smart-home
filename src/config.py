@@ -1,6 +1,9 @@
-FEED_URI = "at://did:web:feed.smarthomenewsletter.com/app.bsky.feed.generator/smart-home"
-FEED_HOSTNAME = "feed.smarthomenewsletter.com"
+FEED_HOSTNAME = "bluesky-feed.smarthomenewsletter.com"
 FEED_DID = f"did:web:{FEED_HOSTNAME}"
+FEED_RECORD_NAME = "smart-home"
+FEED_URI = f"at://{FEED_DID}/app.bsky.feed.generator/{FEED_RECORD_NAME}"
+FEED_DISPLAY_NAME = "Smart Home"
+FEED_DESCRIPTION = "Posts about smart home, home automation, Home Assistant, and IoT"
 
 # Search keywords for smart home content
 SEARCH_KEYWORDS = [
