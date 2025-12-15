@@ -1,5 +1,19 @@
+# Python
 .venv/
 __pycache__/
 *.pyc
+
+# Environment
 .env
+
+# Generated output files
+output/
+
+# Local settings
+.claude/settings.local.json
+
+# OS
 .DS_Store
+
+# Pytest
+.pytest_cache/
