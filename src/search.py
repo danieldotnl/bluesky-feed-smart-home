@@ -89,6 +89,9 @@ async def search_posts_paginated(
             params["q"] = query
         if tag:
             params["tag"] = [tag]
+            # API requires q parameter even when filtering by tag
+            if not query:
+                params["q"] = "*"
 
         if cursor:
             params["cursor"] = cursor

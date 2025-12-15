@@ -33,8 +33,10 @@ class TestBlueskyAPI:
         client = await get_authenticated_client()
         assert client is not None
 
-        # Search by hashtag
-        posts = await search_posts_paginated(client, tag="smarthome", limit_per_page=5, max_pages=1)
+        # Search by query (hashtag searches use tag param internally via fetch_all_posts)
+        posts = await search_posts_paginated(
+            client, query="smart home", limit_per_page=5, max_pages=1
+        )
         assert isinstance(posts, list)
 
         if posts:
