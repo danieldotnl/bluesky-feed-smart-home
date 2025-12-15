@@ -11,6 +11,7 @@ from src.search import (
     fetch_all_posts,
     get_authenticated_client,
     get_since_timestamp,
+    parse_keywords,
     search_posts_paginated,
 )
 
@@ -64,6 +65,48 @@ class TestGetSinceTimestamp:
         dt = dt.replace(tzinfo=UTC)
         now = datetime.now(UTC)
         assert dt < now
+
+
+class TestParseKeywords:
+    """Tests for parse_keywords function."""
+
+    def test_separates_hashtags_and_phrases(self):
+        """Test that hashtags and phrases are separated correctly."""
+        keywords = ["#smarthome", "#homeassistant", "smart home", "home automation"]
+        tags, phrases = parse_keywords(keywords)
+
+        assert tags == ["smarthome", "homeassistant"]
+        assert phrases == ["smart home", "home automation"]
+
+    def test_removes_hash_prefix(self):
+        """Test that # prefix is removed from hashtags."""
+        keywords = ["#test", "#another"]
+        tags, phrases = parse_keywords(keywords)
+
+        assert tags == ["test", "another"]
+        assert phrases == []
+
+    def test_empty_list(self):
+        """Test with empty keyword list."""
+        tags, phrases = parse_keywords([])
+        assert tags == []
+        assert phrases == []
+
+    def test_only_hashtags(self):
+        """Test with only hashtags."""
+        keywords = ["#one", "#two", "#three"]
+        tags, phrases = parse_keywords(keywords)
+
+        assert tags == ["one", "two", "three"]
+        assert phrases == []
+
+    def test_only_phrases(self):
+        """Test with only phrases."""
+        keywords = ["smart home", "home automation"]
+        tags, phrases = parse_keywords(keywords)
+
+        assert tags == []
+        assert phrases == ["smart home", "home automation"]
 
 
 @pytest.mark.asyncio
@@ -184,10 +227,10 @@ class TestFetchAllPosts:
             {"uri": "at://did:plc:test/post/3", "text": "Post 3"},
         ]
 
-        async def search_side_effect(client, keyword, **kwargs):
-            if keyword == "#smarthome":
+        async def search_side_effect(client, query=None, tag=None, **kwargs):
+            if tag == "smarthome":
                 return posts_1
-            elif keyword == "#homeassistant":
+            elif tag == "homeassistant":
                 return posts_2
             return []
 
