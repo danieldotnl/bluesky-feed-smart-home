@@ -38,7 +38,7 @@ class TestGetAuthenticatedClient:
             mock_client = AsyncMock()
             mock_client_class.return_value = mock_client
 
-            await get_authenticated_client()
+            _ = await get_authenticated_client()
 
             mock_client.login.assert_not_called()
             captured = capsys.readouterr()
