@@ -5,7 +5,15 @@ FEED_DID = f"did:web:{FEED_HOSTNAME}"
 FEED_RECORD_NAME = "smart-home"
 FEED_URI = f"at://{FEED_DID}/app.bsky.feed.generator/{FEED_RECORD_NAME}"
 FEED_DISPLAY_NAME = "Smart Home"
-FEED_DESCRIPTION = "Posts about smart home, home automation, Home Assistant, and IoT"
+FEED_DESCRIPTION = (
+    "Smart home & Home Automation posts automatically curated for quality.\n"
+    "No spam. No deals. English only.\n"
+    "\n"
+    "Home Assistant · HomeKit · SmartThings · Google Home · "
+    "Matter · Zigbee · Philips Hue · Alexa · and more\n"
+    "\n"
+    "By Smart Home Newsletter — smarthomenewsletter.com"
+)
 
 # Feed settings
 FEED_SIZE = 100
