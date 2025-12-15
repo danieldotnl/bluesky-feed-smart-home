@@ -1,7 +1,9 @@
 """Integration tests that call the real Bluesky API.
 
 These tests require BSKY_HANDLE and BSKY_PASSWORD environment variables.
-They will be skipped if credentials are not available.
+Run with: pytest -m integration
+
+They are skipped by default and when credentials are not available.
 """
 
 import os
@@ -17,79 +19,55 @@ load_dotenv()
 # Skip all tests in this module if credentials are not available
 pytestmark = pytest.mark.skipif(
     not os.environ.get("BSKY_HANDLE") or not os.environ.get("BSKY_PASSWORD"),
-    reason="BSKY_HANDLE and BSKY_PASSWORD environment variables required for integration tests",
+    reason="BSKY_HANDLE and BSKY_PASSWORD environment variables required",
 )
 
 
 @pytest.mark.asyncio
 @pytest.mark.integration
-class TestRealAPIIntegration:
-    """Integration tests with real Bluesky API calls."""
+class TestBlueskyAPI:
+    """Smoke tests to verify the Bluesky API integration works."""
 
-    async def test_authenticate_with_real_credentials(self):
-        """Test authentication with real API credentials."""
+    async def test_authentication_and_search(self):
+        """Test that we can authenticate and search for posts."""
         client = await get_authenticated_client()
-
         assert client is not None
-        # If authentication succeeded, client should be usable
-        assert hasattr(client, "app")
 
-    async def test_search_posts_real_api(self):
-        """Test searching posts with real API."""
-        client = await get_authenticated_client()
-
-        # Search for a common hashtag with small limit to keep test fast
-        posts = await search_posts_paginated(client, "#smarthome", limit_per_page=5, max_pages=1)
-
-        # Should get some results
+        # Search by hashtag
+        posts = await search_posts_paginated(client, tag="smarthome", limit_per_page=5, max_pages=1)
         assert isinstance(posts, list)
-        # Posts might be empty, but if not, should have correct structure
+
         if posts:
+            # Verify post structure
             assert "uri" in posts[0]
-            assert "indexedAt" in posts[0] or "indexed_at" in posts[0]
+            assert posts[0]["uri"].startswith("at://")
 
-    async def test_fetch_all_posts_real_api(self):
-        """Test fetching posts from all keywords with real API.
-
-        This test uses a small subset of keywords to keep it fast.
-        """
-        # Temporarily override keywords via mock
+    async def test_fetch_all_posts_pipeline(self):
+        """Test the full fetch pipeline with a minimal keyword set."""
         from unittest.mock import patch
 
-        with patch("src.search.load_keywords", return_value=["#smarthome", "#homeassistant"]):
+        # Use minimal keywords to keep test fast
+        with patch("src.search.load_keywords", return_value=["#smarthome"]):
             posts = await fetch_all_posts()
 
-            # Should return a list
-            assert isinstance(posts, list)
+        assert isinstance(posts, list)
+        # Should find some smart home posts
+        assert len(posts) > 0, "Expected to find some #smarthome posts"
 
-            # If we got posts, verify structure
-            if posts:
-                assert "uri" in posts[0]
-                # Check deduplication worked (no duplicate URIs)
-                uris = [p.get("uri") for p in posts]
-                assert len(uris) == len(set(uris)), "Duplicate URIs found"
+        # Verify no duplicate URIs (deduplication works)
+        uris = [p.get("uri") for p in posts]
+        assert len(uris) == len(set(uris)), "Duplicate URIs found"
 
-    async def test_api_returns_recent_posts(self):
-        """Test that API returns recent posts (from last 7 days)."""
-        from datetime import datetime, timedelta
-
+    async def test_exact_phrase_search(self):
+        """Test that quoted phrases return posts with the exact phrase."""
         client = await get_authenticated_client()
-        posts = await search_posts_paginated(client, "#smarthome", limit_per_page=10, max_pages=1)
+
+        posts = await search_posts_paginated(
+            client, query='"smart home"', limit_per_page=5, max_pages=1
+        )
 
         if posts:
-            # Check that at least some posts are recent
-            now = datetime.now()
-            recent_posts = 0
-
+            # Verify posts contain the exact phrase (in text or alt text)
             for post in posts:
-                indexed_at = post.get("indexedAt") or post.get("indexed_at")
-                if indexed_at:
-                    try:
-                        post_time = datetime.fromisoformat(indexed_at.replace("Z", "+00:00"))
-                        if (now - post_time.replace(tzinfo=None)) < timedelta(days=7):
-                            recent_posts += 1
-                    except (ValueError, AttributeError):
-                        pass
-
-            # At least some posts should be from the last week
-            assert recent_posts > 0, "No recent posts found"
+                text = post.get("record", {}).get("text", "").lower()
+                assert "smart home" in text, f"Post missing exact phrase: {text[:100]}"

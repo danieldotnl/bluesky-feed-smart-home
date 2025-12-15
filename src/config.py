@@ -6,7 +6,7 @@ FEED_RECORD_NAME = "smart-home"
 FEED_URI = f"at://{FEED_DID}/app.bsky.feed.generator/{FEED_RECORD_NAME}"
 FEED_DISPLAY_NAME = "Smart Home"
 FEED_DESCRIPTION = (
-    "Smart home & Home Automation posts automatically curated for quality.\n"
+    "Smart Home & Home Automation posts automatically curated for quality.\n"
     "No spam. No deals. English only.\n"
     "\n"
     "Home Assistant · HomeKit · SmartThings · Google Home · "
