@@ -1,7 +1,6 @@
 #smarthome
 #homeassistant
 #homeautomation
-#iot
 #zigbee
 #zwave
 #matter
