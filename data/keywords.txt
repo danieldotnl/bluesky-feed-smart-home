@@ -4,7 +4,6 @@
 #zigbee
 #zwave
 #matter
-#thread
 #esphome
 #tasmota
 #mqtt
@@ -12,7 +11,6 @@
 smart home
 home assistant
 home automation
-smart things
 #googlehome
 #homekit
 #alexa
