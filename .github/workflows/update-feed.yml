@@ -32,3 +32,23 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy output --project-name=bluesky-feed-smart-home
+
+      - name: Cleanup old deployments
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          # Get all deployments except the latest 5
+          DEPLOYMENTS=$(curl -s -X GET \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/bluesky-feed-smart-home/deployments" \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            | jq -r '.result[5:] | .[].id')
+
+          # Delete old deployments
+          for deployment_id in $DEPLOYMENTS; do
+            echo "Deleting deployment: $deployment_id"
+            curl -s -X DELETE \
+              "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/bluesky-feed-smart-home/deployments/${deployment_id}" \
+              -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}"
+          done
+          echo "Cleanup complete"
