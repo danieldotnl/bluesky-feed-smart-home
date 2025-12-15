@@ -31,6 +31,24 @@ line-length = 100
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP"]
 
+[tool.pytest.ini_options]
+# Test discovery patterns
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+# Asyncio mode for pytest-asyncio
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+# Markers
+markers = [
+    "integration: Integration tests that call the real API (may be slow, require credentials)",
+    "unit: Fast unit tests with mocks (default)",
+]
+# Output options - by default, skip integration tests (run them with: pytest -m integration)
+addopts = "-v --strict-markers --tb=short --disable-warnings -m 'not integration'"
+# Test paths
+testpaths = ["tests"]
+
 [dependency-groups]
 dev = [
     "pre-commit>=4.5.0",

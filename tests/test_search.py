@@ -78,6 +78,14 @@ class TestParseKeywords:
         assert tags == ["smarthome", "homeassistant"]
         assert phrases == ["smart home", "home automation"]
 
+    def test_single_word_phrases(self):
+        """Test that single-word phrases are preserved."""
+        keywords = ["zigbee", "matter"]
+        tags, phrases = parse_keywords(keywords)
+
+        assert tags == []
+        assert phrases == ["zigbee", "matter"]
+
     def test_removes_hash_prefix(self):
         """Test that # prefix is removed from hashtags."""
         keywords = ["#test", "#another"]
@@ -317,3 +325,49 @@ class TestFetchAllPosts:
 
         assert len(result) == 2
         assert all("uri" in post for post in result)
+
+    @patch("src.search.search_posts_paginated")
+    @patch("src.search.get_authenticated_client")
+    @patch("src.search.load_keywords")
+    async def test_fetch_all_posts_quotes_multi_word_phrases(
+        self, mock_load_keywords, mock_get_client, mock_search
+    ):
+        """Test that multi-word phrases are wrapped in quotes for exact matching."""
+        mock_load_keywords.return_value = ["smart home", "google home", "zigbee"]
+        mock_client = AsyncMock()
+        mock_get_client.return_value = mock_client
+        mock_search.return_value = []
+
+        await fetch_all_posts()
+
+        # Check that search was called with quoted multi-word phrases
+        calls = mock_search.call_args_list
+        queries = [call.kwargs.get("query") for call in calls if call.kwargs.get("query")]
+
+        assert '"smart home"' in queries
+        assert '"google home"' in queries
+        assert "zigbee" in queries  # Single word should NOT be quoted
+        assert '"zigbee"' not in queries
+
+    @patch("src.search.search_posts_paginated")
+    @patch("src.search.get_authenticated_client")
+    @patch("src.search.load_keywords")
+    async def test_fetch_all_posts_does_not_quote_single_words(
+        self, mock_load_keywords, mock_get_client, mock_search
+    ):
+        """Test that single-word phrases are not wrapped in quotes."""
+        mock_load_keywords.return_value = ["matter", "thread"]
+        mock_client = AsyncMock()
+        mock_get_client.return_value = mock_client
+        mock_search.return_value = []
+
+        await fetch_all_posts()
+
+        calls = mock_search.call_args_list
+        queries = [call.kwargs.get("query") for call in calls if call.kwargs.get("query")]
+
+        # Single words should not have quotes
+        assert "matter" in queries
+        assert "thread" in queries
+        assert '"matter"' not in queries
+        assert '"thread"' not in queries

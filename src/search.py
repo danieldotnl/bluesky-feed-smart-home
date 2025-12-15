@@ -143,9 +143,11 @@ async def fetch_all_posts() -> list[dict]:
             print(f"Error searching for #{tag}: {e}")
 
     # Search by phrases using q parameter
+    # Wrap multi-word phrases in quotes for exact phrase matching
     for phrase in phrases:
         try:
-            posts = await search_posts_paginated(client, query=phrase)
+            query = f'"{phrase}"' if " " in phrase else phrase
+            posts = await search_posts_paginated(client, query=query)
             new_count = 0
             for post in posts:
                 uri = post.get("uri")
