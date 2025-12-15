@@ -9,7 +9,7 @@ import os
 import pytest
 from dotenv import load_dotenv
 
-from src.search import fetch_all_posts, get_authenticated_client, search_posts
+from src.search import fetch_all_posts, get_authenticated_client, search_posts_paginated
 
 # Load .env file for local testing
 load_dotenv()
@@ -39,7 +39,7 @@ class TestRealAPIIntegration:
         client = await get_authenticated_client()
 
         # Search for a common hashtag with small limit to keep test fast
-        posts = await search_posts(client, "#smarthome", limit=5)
+        posts = await search_posts_paginated(client, "#smarthome", limit_per_page=5, max_pages=1)
 
         # Should get some results
         assert isinstance(posts, list)
@@ -53,14 +53,10 @@ class TestRealAPIIntegration:
 
         This test uses a small subset of keywords to keep it fast.
         """
-        # Temporarily override SEARCH_KEYWORDS for faster test
-        import src.config
+        # Temporarily override keywords via mock
+        from unittest.mock import patch
 
-        original_keywords = src.config.SEARCH_KEYWORDS
-        try:
-            # Use only 2 keywords for faster test
-            src.config.SEARCH_KEYWORDS = ["#smarthome", "#homeassistant"]
-
+        with patch("src.search.load_keywords", return_value=["#smarthome", "#homeassistant"]):
             posts = await fetch_all_posts()
 
             # Should return a list
@@ -73,16 +69,12 @@ class TestRealAPIIntegration:
                 uris = [p.get("uri") for p in posts]
                 assert len(uris) == len(set(uris)), "Duplicate URIs found"
 
-        finally:
-            # Restore original keywords
-            src.config.SEARCH_KEYWORDS = original_keywords
-
     async def test_api_returns_recent_posts(self):
-        """Test that API returns recent posts (from last 24 hours ideally)."""
+        """Test that API returns recent posts (from last 7 days)."""
         from datetime import datetime, timedelta
 
         client = await get_authenticated_client()
-        posts = await search_posts(client, "#smarthome", limit=10)
+        posts = await search_posts_paginated(client, "#smarthome", limit_per_page=10, max_pages=1)
 
         if posts:
             # Check that at least some posts are recent

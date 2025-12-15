@@ -25,11 +25,11 @@ def generate_feed_skeleton(posts: list[dict]) -> dict:
     """Generate the feed skeleton response."""
     feed = [{"post": post["uri"]} for post in posts if "uri" in post]
 
-    # Use the last post's indexedAt as cursor for pagination
+    # Use the last post's indexed_at as cursor for pagination
     cursor = None
     if posts:
         last_post = posts[-1]
-        cursor = last_post.get("indexedAt", "")
+        cursor = last_post.get("indexed_at") or last_post.get("indexedAt", "")
 
     result = {"feed": feed}
     if cursor:

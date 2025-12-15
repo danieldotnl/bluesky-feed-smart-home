@@ -1,7 +1,6 @@
 """Unit tests for src/generator.py."""
 
 import json
-from pathlib import Path
 
 import pytest
 

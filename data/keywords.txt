@@ -1,0 +1,14 @@
+#smarthome
+#homeassistant
+#homeautomation
+#iot
+#zigbee
+#zwave
+#matter
+#thread
+#esphome
+#tasmota
+#mqtt
+smart home
+home assistant
+home automation

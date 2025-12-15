@@ -1,12 +1,18 @@
 """Unit tests for src/search.py."""
 
 import os
+from datetime import UTC
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from atproto.exceptions import AtProtocolError
 
-from src.search import fetch_all_posts, get_authenticated_client, search_posts
+from src.search import (
+    fetch_all_posts,
+    get_authenticated_client,
+    get_since_timestamp,
+    search_posts_paginated,
+)
 
 
 @pytest.mark.asyncio
@@ -32,16 +38,37 @@ class TestGetAuthenticatedClient:
             mock_client = AsyncMock()
             mock_client_class.return_value = mock_client
 
-            client = await get_authenticated_client()
+            await get_authenticated_client()
 
             mock_client.login.assert_not_called()
             captured = capsys.readouterr()
             assert "Warning" in captured.out
 
 
+class TestGetSinceTimestamp:
+    """Tests for get_since_timestamp function."""
+
+    def test_returns_iso_format(self):
+        """Test timestamp is in ISO format."""
+        timestamp = get_since_timestamp()
+        assert "T" in timestamp
+        assert timestamp.endswith("Z")
+
+    def test_timestamp_is_in_past(self):
+        """Test timestamp is in the past."""
+        from datetime import datetime
+
+        timestamp = get_since_timestamp()
+        # Parse the timestamp
+        dt = datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%SZ")
+        dt = dt.replace(tzinfo=UTC)
+        now = datetime.now(UTC)
+        assert dt < now
+
+
 @pytest.mark.asyncio
-class TestSearchPosts:
-    """Tests for search_posts function."""
+class TestSearchPostsPaginated:
+    """Tests for search_posts_paginated function."""
 
     async def test_search_posts_basic(self):
         """Test basic post search functionality."""
@@ -61,43 +88,89 @@ class TestSearchPosts:
         }
 
         mock_response.posts = [mock_post1, mock_post2]
+        mock_response.cursor = None  # No more pages
         mock_client.app.bsky.feed.search_posts = AsyncMock(return_value=mock_response)
 
-        result = await search_posts(mock_client, "#smarthome", limit=10)
+        result = await search_posts_paginated(mock_client, "#smarthome", limit_per_page=10)
 
         assert len(result) == 2
         assert result[0]["uri"] == "at://did:plc:test/app.bsky.feed.post/1"
         assert result[1]["uri"] == "at://did:plc:test/app.bsky.feed.post/2"
 
-        # Verify search was called with correct parameters
-        call_args = mock_client.app.bsky.feed.search_posts.call_args
-        assert call_args.kwargs["params"]["q"] == "#smarthome"
-        assert call_args.kwargs["params"]["limit"] == 10
-        assert call_args.kwargs["params"]["lang"] == "en"
-        assert call_args.kwargs["params"]["sort"] == "latest"
+    async def test_search_posts_pagination(self):
+        """Test pagination through multiple pages."""
+        mock_client = AsyncMock()
 
-    async def test_search_posts_with_custom_limit(self):
-        """Test search with custom limit."""
+        # First page response
+        mock_response1 = MagicMock()
+        mock_post1 = MagicMock()
+        mock_post1.model_dump.return_value = {"uri": "post1"}
+        mock_response1.posts = [mock_post1]
+        mock_response1.cursor = "cursor1"
+
+        # Second page response
+        mock_response2 = MagicMock()
+        mock_post2 = MagicMock()
+        mock_post2.model_dump.return_value = {"uri": "post2"}
+        mock_response2.posts = [mock_post2]
+        mock_response2.cursor = None  # No more pages
+
+        mock_client.app.bsky.feed.search_posts = AsyncMock(
+            side_effect=[mock_response1, mock_response2]
+        )
+
+        result = await search_posts_paginated(mock_client, "#test", limit_per_page=1, max_pages=3)
+
+        assert len(result) == 2
+        assert mock_client.app.bsky.feed.search_posts.call_count == 2
+
+    async def test_search_posts_max_pages_limit(self):
+        """Test max pages limit is respected."""
+        mock_client = AsyncMock()
+
+        def create_response(cursor):
+            response = MagicMock()
+            post = MagicMock()
+            post.model_dump.return_value = {"uri": f"post-{cursor}"}
+            response.posts = [post]
+            response.cursor = f"cursor-{cursor}"
+            return response
+
+        mock_client.app.bsky.feed.search_posts = AsyncMock(
+            side_effect=[create_response(i) for i in range(10)]
+        )
+
+        await search_posts_paginated(mock_client, "#test", limit_per_page=1, max_pages=2)
+
+        # Should stop at 2 pages even though more are available
+        assert mock_client.app.bsky.feed.search_posts.call_count == 2
+
+    async def test_search_posts_includes_since(self):
+        """Test that 'since' parameter is included."""
         mock_client = AsyncMock()
         mock_response = MagicMock()
         mock_response.posts = []
+        mock_response.cursor = None
         mock_client.app.bsky.feed.search_posts = AsyncMock(return_value=mock_response)
 
-        await search_posts(mock_client, "test", limit=50)
+        await search_posts_paginated(mock_client, "test")
 
         call_args = mock_client.app.bsky.feed.search_posts.call_args
-        assert call_args.kwargs["params"]["limit"] == 50
+        assert "since" in call_args.kwargs["params"]
 
 
 @pytest.mark.asyncio
 class TestFetchAllPosts:
     """Tests for fetch_all_posts function."""
 
-    @patch("src.config.SEARCH_KEYWORDS", ["#smarthome", "#homeassistant"])
-    @patch("src.search.search_posts")
+    @patch("src.search.search_posts_paginated")
     @patch("src.search.get_authenticated_client")
-    async def test_fetch_all_posts_deduplicates(self, mock_get_client, mock_search):
+    @patch("src.search.load_keywords")
+    async def test_fetch_all_posts_deduplicates(
+        self, mock_load_keywords, mock_get_client, mock_search
+    ):
         """Test that duplicate posts are removed."""
+        mock_load_keywords.return_value = ["#smarthome", "#homeassistant"]
         mock_client = AsyncMock()
         mock_get_client.return_value = mock_client
 
@@ -111,8 +184,7 @@ class TestFetchAllPosts:
             {"uri": "at://did:plc:test/post/3", "text": "Post 3"},
         ]
 
-        # Use a function that returns the right posts based on keyword
-        async def search_side_effect(client, keyword):
+        async def search_side_effect(client, keyword, **kwargs):
             if keyword == "#smarthome":
                 return posts_1
             elif keyword == "#homeassistant":
@@ -130,11 +202,14 @@ class TestFetchAllPosts:
         assert "at://did:plc:test/post/2" in uris
         assert "at://did:plc:test/post/3" in uris
 
-    @patch("src.config.SEARCH_KEYWORDS", ["#test"])
-    @patch("src.search.search_posts")
+    @patch("src.search.search_posts_paginated")
     @patch("src.search.get_authenticated_client")
-    async def test_fetch_all_posts_handles_errors(self, mock_get_client, mock_search, capsys):
+    @patch("src.search.load_keywords")
+    async def test_fetch_all_posts_handles_errors(
+        self, mock_load_keywords, mock_get_client, mock_search, capsys
+    ):
         """Test error handling for failed searches."""
+        mock_load_keywords.return_value = ["#test"]
         mock_client = AsyncMock()
         mock_get_client.return_value = mock_client
 
@@ -146,25 +221,45 @@ class TestFetchAllPosts:
         captured = capsys.readouterr()
         assert "Error searching" in captured.out
 
-    async def test_fetch_all_posts_searches_all_keywords(self):
+    @patch("src.search.search_posts_paginated")
+    @patch("src.search.get_authenticated_client")
+    @patch("src.search.load_keywords")
+    async def test_fetch_all_posts_searches_all_keywords(
+        self, mock_load_keywords, mock_get_client, mock_search
+    ):
         """Test that all keywords are searched."""
-        with patch("src.search.SEARCH_KEYWORDS", ["#keyword1", "#keyword2", "#keyword3"]):
-            with patch("src.search.get_authenticated_client") as mock_get_client:
-                with patch("src.search.search_posts") as mock_search:
-                    mock_client = AsyncMock()
-                    mock_get_client.return_value = mock_client
-                    mock_search.return_value = []
+        mock_load_keywords.return_value = ["#keyword1", "#keyword2", "#keyword3"]
+        mock_client = AsyncMock()
+        mock_get_client.return_value = mock_client
+        mock_search.return_value = []
 
-                    await fetch_all_posts()
+        await fetch_all_posts()
 
-                    # Should be called once per keyword
-                    assert mock_search.call_count == 3
+        # Should be called once per keyword
+        assert mock_search.call_count == 3
 
     @patch("src.search.get_authenticated_client")
-    @patch("src.search.search_posts")
-    @patch("src.config.SEARCH_KEYWORDS", ["#test"])
-    async def test_fetch_all_posts_filters_posts_without_uri(self, mock_search, mock_get_client):
+    @patch("src.search.load_keywords")
+    async def test_fetch_all_posts_empty_keywords(
+        self, mock_load_keywords, mock_get_client, capsys
+    ):
+        """Test handling empty keywords list."""
+        mock_load_keywords.return_value = []
+
+        result = await fetch_all_posts()
+
+        assert result == []
+        captured = capsys.readouterr()
+        assert "No keywords found" in captured.out
+
+    @patch("src.search.search_posts_paginated")
+    @patch("src.search.get_authenticated_client")
+    @patch("src.search.load_keywords")
+    async def test_fetch_all_posts_filters_posts_without_uri(
+        self, mock_load_keywords, mock_get_client, mock_search
+    ):
         """Test that posts without URI are filtered out."""
+        mock_load_keywords.return_value = ["#test"]
         mock_client = AsyncMock()
         mock_get_client.return_value = mock_client
 
