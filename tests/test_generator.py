@@ -45,12 +45,11 @@ class TestGenerateFeedSkeleton:
         assert skeleton["feed"][1] == {"post": sample_posts[1]["uri"]}
         assert skeleton["feed"][2] == {"post": sample_posts[2]["uri"]}
 
-    def test_generate_feed_skeleton_with_cursor(self, sample_posts):
-        """Test cursor is set from last post."""
+    def test_generate_feed_skeleton_no_cursor(self, sample_posts):
+        """Test cursor is omitted for static feeds that don't support pagination."""
         skeleton = generate_feed_skeleton(sample_posts)
 
-        assert "cursor" in skeleton
-        assert skeleton["cursor"] == sample_posts[-1]["indexedAt"]
+        assert "cursor" not in skeleton
 
     def test_generate_feed_skeleton_empty_list(self):
         """Test with empty post list."""

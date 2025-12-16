@@ -22,20 +22,14 @@ def generate_did_document() -> dict:
 
 
 def generate_feed_skeleton(posts: list[dict]) -> dict:
-    """Generate the feed skeleton response."""
+    """Generate the feed skeleton response.
+
+    Note: We intentionally omit the cursor field. Since this is a static feed
+    that cannot handle pagination requests, omitting the cursor tells Bluesky
+    clients that all posts are included and no more pages exist.
+    """
     feed = [{"post": post["uri"]} for post in posts if "uri" in post]
-
-    # Use the last post's indexed_at as cursor for pagination
-    cursor = None
-    if posts:
-        last_post = posts[-1]
-        cursor = last_post.get("indexed_at") or last_post.get("indexedAt", "")
-
-    result = {"feed": feed}
-    if cursor:
-        result["cursor"] = cursor
-
-    return result
+    return {"feed": feed}
 
 
 async def write_output_files(posts: list[dict], output_dir: Path) -> None:
