@@ -7,7 +7,9 @@
     "test": "tests"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
   },
   "repository": {
     "type": "git",
@@ -22,6 +24,7 @@
   "homepage": "https://github.com/danieldotnl/bluesky-feed-smart-home#readme",
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20251216.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.16"
   }
 }
