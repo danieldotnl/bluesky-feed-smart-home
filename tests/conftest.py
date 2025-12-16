@@ -251,7 +251,7 @@ def self_authored_post():
         "cid": "bafyself",
         "author": {
             "did": "did:plc:self",
-            "handle": "smarthomenewsletter.bsky.social",
+            "handle": "smarthomenewsletter.com",
         },
         "record": {
             "text": "Weekly smart home roundup from the newsletter #smarthome",

@@ -6,8 +6,8 @@ FEED_RECORD_NAME = "smart-home"
 FEED_URI = f"at://{FEED_DID}/app.bsky.feed.generator/{FEED_RECORD_NAME}"
 FEED_DISPLAY_NAME = "Smart Home"
 FEED_DESCRIPTION = (
-    "Smart Home & Home Automation posts automatically curated for quality.\n"
-    "No spam. No deals. English only.\n"
+    "✅ Smart Home & Home Automation posts automatically curated for quality.\n"
+    "🚫 No spam. No deals. 📚 English only.\n"
     "\n"
     "Home Assistant · HomeKit · SmartThings · Google Home · "
     "Matter · Zigbee · Philips Hue · Alexa · and more\n"
@@ -20,7 +20,7 @@ FEED_SIZE = 100
 LANGUAGE = "en"
 
 # Algorithm settings
-SELF_AUTHOR_HANDLE = "smarthomenewsletter.bsky.social"
+SELF_AUTHOR_HANDLE = "smarthomenewsletter.com"
 SEARCH_TIME_WINDOW_DAYS = 7
 DECAY_HALF_LIFE_HOURS = 18
 
