@@ -31,8 +31,110 @@ AMAZON_AFFILIATE_PATTERNS = [
 # URL pattern for extracting links from text
 URL_PATTERN = re.compile(r"https?://[^\s<>\"']+", re.IGNORECASE)
 
+# Hashtag pattern for counting hashtags
+HASHTAG_PATTERN = re.compile(r"#\w+", re.UNICODE)
+
 # Bluesky internal domains to exclude from link counting
 BSKY_DOMAINS = {"bsky.app", "bsky.social"}
+
+# Common non-English words that indicate language mismatch when post is tagged as English
+# These are high-frequency words unlikely to appear in English text
+NON_ENGLISH_MARKERS = {
+    # Italian
+    "della",
+    "delle",
+    "degli",
+    "nella",
+    "nelle",
+    "questo",
+    "questa",
+    "questi",
+    "anche",
+    "sono",
+    "essere",
+    "stato",
+    "molto",
+    "tutto",
+    "tutti",
+    "sempre",
+    "ancora",
+    "quando",
+    "dove",
+    "perché",
+    "quindi",
+    "però",
+    "nuovo",
+    "nuova",
+    "rivela",
+    "prossime",
+    "uscite",
+    # German
+    "nicht",
+    "sich",
+    "auch",
+    "werden",
+    "nach",
+    "noch",
+    "jetzt",
+    "können",
+    "diese",
+    "dieser",
+    "dieses",
+    "unter",
+    "durch",
+    "gegen",
+    "während",
+    # French
+    "dans",
+    "pour",
+    "avec",
+    "cette",
+    "sont",
+    "mais",
+    "nous",
+    "vous",
+    "leur",
+    "leurs",
+    "être",
+    "avoir",
+    "faire",
+    "tout",
+    "tous",
+    "très",
+    # Spanish
+    "para",
+    "pero",
+    "como",
+    "está",
+    "este",
+    "esta",
+    "esto",
+    "tienen",
+    "puede",
+    "hacer",
+    "sobre",
+    "todos",
+    "desde",
+    "hasta",
+    "entre",
+    "nuevo",
+    # Portuguese
+    "para",
+    "como",
+    "está",
+    "esse",
+    "essa",
+    "isso",
+    "foram",
+    "muito",
+    "sobre",
+    "todos",
+    "desde",
+    "agora",
+    "ainda",
+    "novo",
+    "nova",
+}
 
 
 def load_blacklist() -> set[str]:
@@ -197,6 +299,42 @@ def has_excessive_emojis(post: dict, max_emojis: int = 3) -> bool:
     return count_emojis(text) > max_emojis
 
 
+def count_hashtags(text: str) -> int:
+    """Count hashtags in text."""
+    return len(HASHTAG_PATTERN.findall(text))
+
+
+def has_excessive_hashtags(post: dict, max_hashtags: int = 5) -> bool:
+    """Check if post has more than max_hashtags hashtags (hashtag spam)."""
+    record = post.get("record", {})
+    text = record.get("text", "")
+    return count_hashtags(text) > max_hashtags
+
+
+def has_language_mismatch(post: dict, min_markers: int = 2) -> bool:
+    """Check if post claims to be English but contains non-English text.
+
+    Returns True if post should be excluded (language mismatch detected).
+    Only checks posts that claim to be English.
+    """
+    record = post.get("record", {})
+    langs = record.get("langs", [])
+
+    # Only check posts that claim to be English
+    is_tagged_english = any(lang.lower().startswith("en") for lang in langs)
+    if not is_tagged_english:
+        return False
+
+    # Check text for non-English markers
+    text = record.get("text", "").lower()
+    # Split on whitespace and punctuation to get words
+    words = set(re.findall(r"\b\w+\b", text))
+
+    # Count how many non-English markers are found
+    markers_found = words & NON_ENGLISH_MARKERS
+    return len(markers_found) >= min_markers
+
+
 def is_self_authored(post: dict) -> bool:
     """Check if post is authored by the feed owner."""
     handle = get_author_handle(post)
@@ -221,6 +359,10 @@ def passes_hard_filters(post: dict, blacklist: set[str]) -> bool:
     if is_not_english(post):
         return False
 
+    # Exclude posts that claim English but contain non-English text
+    if has_language_mismatch(post):
+        return False
+
     # Always exclude posts older than time window
     if is_too_old(post):
         return False
@@ -240,6 +382,9 @@ def passes_hard_filters(post: dict, blacklist: set[str]) -> bool:
         return False
 
     if has_excessive_emojis(post):
+        return False
+
+    if has_excessive_hashtags(post):
         return False
 
     return True
