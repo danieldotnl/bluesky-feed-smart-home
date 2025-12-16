@@ -21,17 +21,6 @@ def generate_did_document() -> dict:
     }
 
 
-def generate_feed_skeleton(posts: list[dict]) -> dict:
-    """Generate the feed skeleton response.
-
-    Note: We intentionally omit the cursor field. Since this is a static feed
-    that cannot handle pagination requests, omitting the cursor tells Bluesky
-    clients that all posts are included and no more pages exist.
-    """
-    feed = [{"post": post["uri"]} for post in posts if "uri" in post]
-    return {"feed": feed}
-
-
 async def write_output_files(posts: list[dict], output_dir: Path) -> None:
     """Write the static JSON files for Cloudflare Pages."""
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -44,13 +33,12 @@ async def write_output_files(posts: list[dict], output_dir: Path) -> None:
     async with aiofiles.open(did_path, "w") as f:
         await f.write(json.dumps(did_doc, indent=2))
 
-    # Write feed skeleton
-    xrpc_dir = output_dir / "xrpc"
-    xrpc_dir.mkdir(exist_ok=True)
-    feed_path = xrpc_dir / "app.bsky.feed.getFeedSkeleton"
-    feed_skeleton = generate_feed_skeleton(posts)
-    async with aiofiles.open(feed_path, "w") as f:
-        await f.write(json.dumps(feed_skeleton, indent=2))
+    # Write feed data for the Cloudflare Pages Function to read
+    data_dir = output_dir / "data"
+    data_dir.mkdir(exist_ok=True)
+    feed_data_path = data_dir / "feed.json"
+    async with aiofiles.open(feed_data_path, "w") as f:
+        await f.write(json.dumps(posts, indent=2))
 
     # Write Cloudflare Pages headers
     headers_content = """\
@@ -65,5 +53,5 @@ async def write_output_files(posts: list[dict], output_dir: Path) -> None:
     async with aiofiles.open(headers_path, "w") as f:
         await f.write(headers_content)
 
-    print(f"Written {len(posts)} posts to feed skeleton")
+    print(f"Written {len(posts)} posts to feed data")
     print(f"Output files written to {output_dir}")

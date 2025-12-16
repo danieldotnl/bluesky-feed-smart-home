@@ -39,12 +39,13 @@ uv run ruff format .
 2. **Algorithm** ([src/algorithm.py](src/algorithm.py)) - Filters and ranks posts by date (newest first)
 3. **Generator** ([src/generator.py](src/generator.py)) - Writes static JSON files to `output/` directory:
    - `output/.well-known/did.json` - DID document identifying the feed generator
-   - `output/xrpc/app.bsky.feed.getFeedSkeleton` - Feed skeleton with post URIs
+   - `output/data/feed.json` - Full feed data (post objects with URIs)
    - `output/_headers` - Cloudflare Pages headers config
+4. **Cloudflare Pages Function** ([functions/xrpc/app.bsky.feed.getFeedSkeleton.js](functions/xrpc/app.bsky.feed.getFeedSkeleton.js)) - Handles pagination by reading the static feed data and returning paginated responses with cursors
 
 ### Key Design Decisions
 
-**No Backend Server:** This is not a traditional feed generator with a web server. It pre-generates static JSON files that Cloudflare Pages serves directly. Bluesky clients fetch these static files.
+**Hybrid Static/Dynamic:** The feed data is pre-generated as static JSON, but a Cloudflare Pages Function handles the `/xrpc/app.bsky.feed.getFeedSkeleton` endpoint to support pagination (cursor/limit parameters). This avoids running a full backend while still supporting Bluesky's pagination requirements.
 
 **Authentication:** Both scripts require Bluesky authentication via `BSKY_HANDLE` and `BSKY_PASSWORD` environment variables:
 - `update_feed.py` - Authenticates to search for posts (required as of 2025)
