@@ -23,6 +23,5 @@ apple homekit
 amazon alexa
 google nest
 philips hue
-smart speaker
 smart thermostat
 smart lock
