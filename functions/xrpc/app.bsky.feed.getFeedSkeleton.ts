@@ -1,8 +1,21 @@
 // Cloudflare Pages Function to handle feed skeleton requests with pagination
 // This reads the static feed data and returns paginated responses
 
-export async function onRequest(context) {
-  const { request, env } = context;
+interface Post {
+  uri: string;
+  cid?: string;
+  [key: string]: unknown;
+}
+
+interface FeedSkeletonResponse {
+  feed: { post: string }[];
+  cursor?: string;
+}
+
+interface Env {}
+
+export const onRequest: PagesFunction<Env> = async (context) => {
+  const { request } = context;
   const url = new URL(request.url);
 
   // Parse query parameters
@@ -23,7 +36,7 @@ export async function onRequest(context) {
     });
   }
 
-  const allPosts = await feedResponse.json();
+  const allPosts: Post[] = await feedResponse.json();
 
   // Find starting position based on cursor
   let startIndex = 0;
@@ -38,12 +51,12 @@ export async function onRequest(context) {
   const postsSlice = allPosts.slice(startIndex, startIndex + limit);
 
   // Build response
-  const feed = postsSlice.map((post) => ({ post: post.uri }));
+  const response: FeedSkeletonResponse = {
+    feed: postsSlice.map((post) => ({ post: post.uri })),
+  };
 
   // Set cursor if there are more posts
-  const response = { feed };
-  if (startIndex + limit < allPosts.length) {
-    // Use the last post's URI as cursor
+  if (startIndex + limit < allPosts.length && postsSlice.length > 0) {
     response.cursor = postsSlice[postsSlice.length - 1].uri;
   }
 
@@ -54,4 +67,4 @@ export async function onRequest(context) {
       "Cache-Control": "public, max-age=300, s-maxage=300",
     },
   });
-}
+};

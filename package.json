@@ -1,0 +1,27 @@
+{
+  "name": "bluesky-feed-smart-home",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/danieldotnl/bluesky-feed-smart-home.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/danieldotnl/bluesky-feed-smart-home/issues"
+  },
+  "homepage": "https://github.com/danieldotnl/bluesky-feed-smart-home#readme",
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20251216.0",
+    "typescript": "^5.9.3"
+  }
+}
