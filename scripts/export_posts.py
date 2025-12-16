@@ -155,7 +155,7 @@ async def main() -> None:
     }
 
     # Write to file
-    output_path = Path(__file__).parent.parent / "data" / "exported_posts.yaml"
+    output_path = Path(__file__).parent.parent / "output" / "exported_posts.yaml"
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     with open(output_path, "w", encoding="utf-8") as f:
