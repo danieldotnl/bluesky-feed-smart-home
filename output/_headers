@@ -1,3 +1,6 @@
 /*
   Access-Control-Allow-Origin: *
   Content-Type: application/json
+
+/xrpc/*
+  Cache-Control: public, max-age=300, s-maxage=300

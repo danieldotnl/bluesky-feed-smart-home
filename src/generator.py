@@ -52,5 +52,18 @@ async def write_output_files(posts: list[dict], output_dir: Path) -> None:
     async with aiofiles.open(feed_path, "w") as f:
         await f.write(json.dumps(feed_skeleton, indent=2))
 
+    # Write Cloudflare Pages headers
+    headers_content = """\
+/*
+  Access-Control-Allow-Origin: *
+  Content-Type: application/json
+
+/xrpc/*
+  Cache-Control: public, max-age=300, s-maxage=300
+"""
+    headers_path = output_dir / "_headers"
+    async with aiofiles.open(headers_path, "w") as f:
+        await f.write(headers_content)
+
     print(f"Written {len(posts)} posts to feed skeleton")
     print(f"Output files written to {output_dir}")
